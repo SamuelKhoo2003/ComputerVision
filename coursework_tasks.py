@@ -21,6 +21,7 @@ if hasattr(cv2, "ocl"):
 
 @dataclass
 class MatchResult:
+    """Container for matched keypoints/correspondences and a debug visualization."""
     pts1: np.ndarray
     pts2: np.ndarray
     kp1: list
@@ -30,10 +31,12 @@ class MatchResult:
 
 
 def ensure_dir(path: str):
+    """Create directory if missing."""
     os.makedirs(path, exist_ok=True)
 
 
 def natural_sorted_jpgs(folder: str):
+    """Return naturally sorted image paths from a folder."""
     if not os.path.isdir(folder):
         return []
 
@@ -50,6 +53,7 @@ def natural_sorted_jpgs(folder: str):
 
 
 def resolve_first_existing_dir(candidates):
+    """Return the first existing directory from a list of candidate paths."""
     for p in candidates:
         if p and os.path.isdir(p):
             return p
@@ -57,6 +61,7 @@ def resolve_first_existing_dir(candidates):
 
 
 def read_img(path: str):
+    """Read an image and fail fast if loading fails."""
     img = cv2.imread(path)
     if img is None:
         raise RuntimeError(f"Failed to read image: {path}")
@@ -64,10 +69,12 @@ def read_img(path: str):
 
 
 def bgr_to_rgb(img):
+    """Convert an image from OpenCV BGR order to RGB order."""
     return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
 
 def detect_and_match(img1, img2, max_features=4000, ratio=0.75):
+    """Detect local features and compute filtered correspondences."""
     gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
     gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
 
@@ -111,6 +118,7 @@ def detect_and_match(img1, img2, max_features=4000, ratio=0.75):
 
 
 def select_best_pair(paths, estimator="homography"):
+    """Select the image pair with the strongest robust geometric fit."""
     if len(paths) < 2:
         raise RuntimeError("Need at least 2 images to select a pair.")
 
@@ -164,6 +172,7 @@ def select_best_pair(paths, estimator="homography"):
 
 
 def manual_correspondences(img1, img2, n_points=12):
+    """Collect manual correspondences by clicking points in image pairs."""
     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
     axes[0].imshow(bgr_to_rgb(img1))
     axes[0].set_title(f"Image 1: click {n_points} points")
@@ -190,6 +199,7 @@ def manual_correspondences(img1, img2, n_points=12):
 
 
 def save_image(path, img_bgr):
+    """Write image to disk."""
     cv2.imwrite(path, img_bgr)
 
 
@@ -209,6 +219,7 @@ def hstack_with_padding(img1, img2, pad_value=0):
 
 
 def reproj_error_homography(H, pts1, pts2):
+    """Compute per-point reprojection error for a homography."""
     pts1_h = cv2.convertPointsToHomogeneous(pts1).reshape(-1, 3)
     proj = (H @ pts1_h.T).T
     proj = proj[:, :2] / proj[:, 2:3]
@@ -217,6 +228,7 @@ def reproj_error_homography(H, pts1, pts2):
 
 
 def run_task2(hg_paths, out_dir, do_manual=True, manual_points=12):
+    """Task 2: estimate homography, compare automatic and optional manual matches."""
     t2_dir = os.path.join(out_dir, "task2")
     ensure_dir(t2_dir)
 
@@ -272,6 +284,7 @@ def run_task2(hg_paths, out_dir, do_manual=True, manual_points=12):
 
 
 def detect_chessboard_points(img_paths, rows, cols):
+    """Detect chessboard corners and prepare calibration point sets."""
     objp = np.zeros((rows * cols, 3), np.float32)
     objp[:, :2] = np.mgrid[0:cols, 0:rows].T.reshape(-1, 2)
     objp_swapped = np.zeros((rows * cols, 3), np.float32)
@@ -335,6 +348,7 @@ def detect_chessboard_points(img_paths, rows, cols):
 
 
 def draw_distortion_comparison(img, K, dist):
+    """Create side-by-side original/undistorted visualization with guide lines."""
     h, w = img.shape[:2]
     newK, _ = cv2.getOptimalNewCameraMatrix(K, dist, (w, h), 1, (w, h))
     und = cv2.undistort(img, K, dist, None, newK)
@@ -347,6 +361,7 @@ def draw_distortion_comparison(img, K, dist):
 
 
 def run_task3(all_paths, out_dir, pattern_rows=5, pattern_cols=7):
+    """Task 3: single-camera calibration from chessboard images."""
     t3_dir = os.path.join(out_dir, "task3")
     ensure_dir(t3_dir)
 
@@ -404,6 +419,7 @@ def run_task3(all_paths, out_dir, pattern_rows=5, pattern_cols=7):
 
 
 def draw_projected_points(img1, img2, pts1, pts2, H):
+    """Visualize projected points from image 1 against correspondences in image 2."""
     vis = hstack_with_padding(img1.copy(), img2.copy())
     w = img1.shape[1]
 
@@ -423,6 +439,7 @@ def draw_projected_points(img1, img2, pts1, pts2, H):
 
 
 def compute_epipoles(F):
+    """Compute left/right epipoles from a fundamental matrix."""
     # Right epipole: F e = 0, Left epipole: F^T e' = 0
     _, _, vt = np.linalg.svd(F)
     e_right = vt[-1]
@@ -435,6 +452,7 @@ def compute_epipoles(F):
 
 
 def draw_epipolar_lines(img1, img2, pts1, pts2, F):
+    """Draw epipolar lines in image 2 induced by points from image 1."""
     lines2 = cv2.computeCorrespondEpilines(pts1.reshape(-1, 1, 2), 1, F).reshape(-1, 3)
     vis2 = img2.copy()
 
@@ -453,6 +471,7 @@ def draw_epipolar_lines(img1, img2, pts1, pts2, F):
 
 
 def estimate_vanishing_points_and_horizon(img):
+    """Estimate two dominant vanishing points and horizon line from line segments."""
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     lsd = cv2.createLineSegmentDetector(0)
     lines = lsd.detect(gray)[0]
@@ -503,6 +522,7 @@ def estimate_vanishing_points_and_horizon(img):
 
 
 def draw_vps_horizon(img, vp1, vp2, horizon):
+    """Draw vanishing points and horizon line onto an image."""
     vis = img.copy()
     h, w = img.shape[:2]
 
@@ -520,6 +540,7 @@ def draw_vps_horizon(img, vp1, vp2, horizon):
 
 
 def estimate_outlier_tolerance(pts1, pts2, max_trials=30):
+    """Estimate tolerated outlier ratio for homography recovery via simulation."""
     # Ground truth from robust estimate on original correspondences
     H, mask = cv2.findHomography(pts1, pts2, cv2.RANSAC, 3.0)
     if H is None:
@@ -573,6 +594,7 @@ def estimate_outlier_tolerance(pts1, pts2, max_trials=30):
 
 
 def run_task4(hg_paths, fd_paths, out_dir):
+    """Task 4: homography/fundamental estimation and geometric diagnostics."""
     t4_dir = os.path.join(out_dir, "task4")
     ensure_dir(t4_dir)
 
@@ -644,6 +666,7 @@ def run_task4(hg_paths, fd_paths, out_dir):
 
 
 def draw_horizontal_guides(img, n=15):
+    """Draw evenly spaced horizontal guide lines."""
     vis = img.copy()
     h, w = vis.shape[:2]
     ys = np.linspace(20, h - 20, n).astype(int)
@@ -653,8 +676,24 @@ def draw_horizontal_guides(img, n=15):
 
 
 def run_task5(fd1, fd2, F, pts1, pts2, out_dir, fd1_bg=None, fd2_bg=None):
+    """Task 5: uncalibrated rectification, disparity, and relative depth estimation."""
     t5_dir = os.path.join(out_dir, "task5")
     ensure_dir(t5_dir)
+    # Prevent stale artifacts from earlier runs from being mistaken as current outputs.
+    for name in [
+        "rectification_failed.txt",
+        "quality_metrics.txt",
+        "rectified_pair_with_epipolar_lines.jpg",
+        "disparity_map.jpg",
+        "relative_depth_map.jpg",
+        "foreground_mask_from_fd_no_object.jpg",
+        "disparity_map_foreground_only.jpg",
+        "relative_depth_map_foreground_only.jpg",
+        "foreground_metrics.txt",
+    ]:
+        p = os.path.join(t5_dir, name)
+        if os.path.isfile(p):
+            os.remove(p)
 
     h, w = fd1.shape[:2]
 
@@ -669,15 +708,42 @@ def run_task5(fd1, fd2, F, pts1, pts2, out_dir, fd1_bg=None, fd2_bg=None):
     r1 = cv2.warpPerspective(fd1, H1, (w, h))
     r2 = cv2.warpPerspective(fd2, H2, (w, h))
 
+    # Restrict disparity to the valid overlap of both rectified views.
+    src_mask1 = np.full((fd1.shape[0], fd1.shape[1]), 255, np.uint8)
+    src_mask2 = np.full((fd2.shape[0], fd2.shape[1]), 255, np.uint8)
+    valid1 = cv2.warpPerspective(src_mask1, H1, (w, h), flags=cv2.INTER_NEAREST)
+    valid2 = cv2.warpPerspective(src_mask2, H2, (w, h), flags=cv2.INTER_NEAREST)
+    overlap = (valid1 > 0) & (valid2 > 0)
+    overlap_ratio = float(np.count_nonzero(overlap) / max(overlap.size, 1))
+
+    if overlap_ratio < 0.08:
+        with open(os.path.join(t5_dir, "rectification_failed.txt"), "w", encoding="utf-8") as f:
+            f.write("Rectification overlap is too small for reliable disparity estimation.\n")
+            f.write(f"overlap_ratio: {overlap_ratio:.6f}\n")
+        return
+
     vis_pair = np.hstack([draw_horizontal_guides(r1), draw_horizontal_guides(r2)])
     save_image(os.path.join(t5_dir, "rectified_pair_with_epipolar_lines.jpg"), vis_pair)
 
-    g1 = cv2.cvtColor(r1, cv2.COLOR_BGR2GRAY)
-    g2 = cv2.cvtColor(r2, cv2.COLOR_BGR2GRAY)
+    ys, xs = np.where(overlap)
+    y0, y1 = int(ys.min()), int(ys.max())
+    x0, x1 = int(xs.min()), int(xs.max())
+    g1 = cv2.cvtColor(r1[y0:y1 + 1, x0:x1 + 1], cv2.COLOR_BGR2GRAY)
+    g2 = cv2.cvtColor(r2[y0:y1 + 1, x0:x1 + 1], cv2.COLOR_BGR2GRAY)
+
+    roi_w = int(g1.shape[1])
+    num_disp = min(16 * 10, max(16, (roi_w // 16) * 16))
+    if num_disp >= roi_w:
+        num_disp = max(16, ((roi_w // 16) - 1) * 16)
+    if num_disp < 16:
+        with open(os.path.join(t5_dir, "rectification_failed.txt"), "w", encoding="utf-8") as f:
+            f.write("Rectified overlap ROI is too narrow for StereoSGBM.\n")
+            f.write(f"roi_width: {roi_w}\n")
+        return
 
     sgbm = cv2.StereoSGBM_create(
         minDisparity=0,
-        numDisparities=16 * 10,
+        numDisparities=num_disp,
         blockSize=7,
         P1=8 * 3 * 7 ** 2,
         P2=32 * 3 * 7 ** 2,
@@ -689,8 +755,11 @@ def run_task5(fd1, fd2, F, pts1, pts2, out_dir, fd1_bg=None, fd2_bg=None):
         mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY,
     )
 
-    disp = sgbm.compute(g1, g2).astype(np.float32) / 16.0
+    disp_roi = sgbm.compute(g1, g2).astype(np.float32) / 16.0
+    disp = np.full((h, w), np.nan, np.float32)
+    disp[y0:y1 + 1, x0:x1 + 1] = disp_roi
     disp[disp <= 0] = np.nan
+    disp[~overlap] = np.nan
 
     # Relative depth (unknown metric scale without known baseline/focal pair)
     rel_depth = 1.0 / (disp + 1e-6)
@@ -705,6 +774,14 @@ def run_task5(fd1, fd2, F, pts1, pts2, out_dir, fd1_bg=None, fd2_bg=None):
 
     save_image(os.path.join(t5_dir, "disparity_map.jpg"), disp_color)
     save_image(os.path.join(t5_dir, "relative_depth_map.jpg"), depth_color)
+
+    with open(os.path.join(t5_dir, "quality_metrics.txt"), "w", encoding="utf-8") as f:
+        valid_disp = int(np.count_nonzero(~np.isnan(disp)))
+        f.write(f"overlap_ratio: {overlap_ratio:.6f}\n")
+        f.write(f"overlap_bbox_xyxy: {x0}, {y0}, {x1}, {y1}\n")
+        f.write(f"stereo_num_disparities: {num_disp}\n")
+        f.write(f"valid_disparity_pixels: {valid_disp}\n")
+        f.write(f"valid_disparity_fraction: {valid_disp / max(disp.size, 1):.6f}\n")
 
     if fd1_bg is not None and fd2_bg is not None:
         rb1 = cv2.warpPerspective(fd1_bg, H1, (w, h))
@@ -743,6 +820,7 @@ def run_task5(fd1, fd2, F, pts1, pts2, out_dir, fd1_bg=None, fd2_bg=None):
 
 
 def main():
+    """CLI entrypoint: run Tasks 2-5 and write artifacts under outputs/."""
     # Keep processing on CPU for reproducibility and to avoid OpenCL cache errors.
     if hasattr(cv2, "ocl"):
         cv2.ocl.setUseOpenCL(False)
@@ -801,7 +879,22 @@ def main():
     run_task3(calib_paths, args.out_dir, args.pattern_rows, args.pattern_cols)
 
     print("Running Task 4...")
-    t4 = run_task4(hg_paths, fd_paths, args.out_dir)
+    fd_paths_for_t45 = fd_paths
+    if len(fd_no_object_paths) >= 2:
+        aligned_count = min(len(fd_paths), len(fd_no_object_paths))
+        fd_paths_for_t45 = fd_paths[:aligned_count]
+        if aligned_count < len(fd_paths):
+            print(
+                "Task 4/5 FD pair search limited to first "
+                f"{aligned_count} FD images to align with no-object indices."
+            )
+    elif fd_no_object_paths:
+        print(
+            "FD no-object folder has fewer than 2 images; "
+            "Task 5 foreground-only outputs cannot be computed."
+        )
+
+    t4 = run_task4(hg_paths, fd_paths_for_t45, args.out_dir)
 
     print("Running Task 5...")
     fd1_bg = None
