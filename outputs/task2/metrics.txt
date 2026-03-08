@@ -1,0 +1,5 @@
+auto_pair_indices: (0, 1)
+auto_num_matches: 583
+auto_inlier_ratio: 0.6861063464837049
+auto_reproj_error_mean: 48.32777892321141
+auto_reproj_error_median: 1.5231381221084008

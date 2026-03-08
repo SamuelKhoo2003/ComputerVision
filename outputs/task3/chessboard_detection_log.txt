@@ -1,0 +1,9 @@
+requested_pattern_rows: 5
+requested_pattern_cols: 7
+images_considered: 4
+images_detected: 4
+
+ok=True, method=findChessboardCorners, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(585, 1536), path=cv_pictures/FD_no_object/PHOTO-2026-03-07-15-28-41 2.jpg
+ok=True, method=findChessboardCorners, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(861, 1338), path=cv_pictures/FD_no_object/PHOTO-2026-03-07-15-28-41.jpg
+ok=True, method=findChessboardCorners, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(743, 1536), path=cv_pictures/FD_no_object/PHOTO-2026-03-07-15-28-42 2.jpg
+ok=True, method=findChessboardCorners, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(676, 1228), path=cv_pictures/FD_no_object/PHOTO-2026-03-07-15-28-42.jpg
