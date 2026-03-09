@@ -1,5 +1,5 @@
-overlap_ratio: 0.353300
-overlap_bbox_xyxy: 0, 0, 1527, 955
+overlap_ratio: 0.443638
+overlap_bbox_xyxy: 238, 144, 1419, 1961
 stereo_num_disparities: 160
-valid_disparity_pixels: 43773
-valid_disparity_fraction: 0.029966
+valid_disparity_pixels: 505394
+valid_disparity_fraction: 0.160660

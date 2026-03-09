@@ -45,6 +45,7 @@ All artifacts are written under `outputs/`.
 
 - `outputs/task2/`
   - `automatic_matches.jpg`
+  - `automatic_matches_sift.jpg` / `automatic_matches_orb.jpg` (or `akaze` if SIFT unavailable)
   - `manual_matches.jpg` (only when interactive manual mode is used)
   - `metrics.txt`
 - `outputs/task3/`

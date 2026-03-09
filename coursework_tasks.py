@@ -68,18 +68,29 @@ def read_img(path: str):
     return img
 
 
-def detect_and_match(img1, img2, max_features=4000, ratio=0.75):
+def detect_and_match(img1, img2, max_features=4000, ratio=0.75, feature_method="sift_orb"):
     """Detect local features and compute filtered correspondences."""
     gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
     gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
 
-    # Prefer SIFT for stability. Fallback to ORB where SIFT is unavailable.
-    if hasattr(cv2, "SIFT_create"):
+    # Supported methods: sift_orb (default), sift, orb, akaze
+    if feature_method == "sift_orb":
+        use_sift = hasattr(cv2, "SIFT_create")
+        feature_method = "sift" if use_sift else "orb"
+
+    if feature_method == "sift":
+        if not hasattr(cv2, "SIFT_create"):
+            raise RuntimeError("SIFT requested but unavailable in this OpenCV build.")
         detector = cv2.SIFT_create(nfeatures=max_features)
         norm = cv2.NORM_L2
-    else:
+    elif feature_method == "orb":
         detector = cv2.ORB_create(nfeatures=max_features)
         norm = cv2.NORM_HAMMING
+    elif feature_method == "akaze":
+        detector = cv2.AKAZE_create()
+        norm = cv2.NORM_HAMMING
+    else:
+        raise ValueError(f"Unknown feature_method: {feature_method}")
 
     kp1, des1 = detector.detectAndCompute(gray1, None)
     kp2, des2 = detector.detectAndCompute(gray2, None)
@@ -112,7 +123,7 @@ def detect_and_match(img1, img2, max_features=4000, ratio=0.75):
     return MatchResult(pts1=pts1, pts2=pts2, kp1=kp1, kp2=kp2, matches=good, vis=vis)
 
 
-def select_best_pair(paths, estimator="homography"):
+def select_best_pair(paths, estimator="homography", feature_method="sift_orb"):
     """Select the image pair with the strongest robust geometric fit."""
     if len(paths) < 2:
         raise RuntimeError("Need at least 2 images to select a pair.")
@@ -125,7 +136,7 @@ def select_best_pair(paths, estimator="homography"):
         img1 = read_img(paths[i])
         img2 = read_img(paths[j])
         try:
-            m = detect_and_match(img1, img2)
+            m = detect_and_match(img1, img2, feature_method=feature_method)
         except RuntimeError:
             failures += 1
             continue
@@ -156,6 +167,7 @@ def select_best_pair(paths, estimator="homography"):
                 "mask": mask,
                 "inliers": inliers,
                 "inlier_ratio": inlier_ratio,
+                "feature_method": feature_method,
             }
 
     if best is None:
@@ -227,24 +239,50 @@ def run_task2(hg_paths, out_dir, do_manual=True, manual_points=12):
     t2_dir = os.path.join(out_dir, "task2")
     ensure_dir(t2_dir)
 
-    best = select_best_pair(hg_paths, estimator="homography")
+    primary_method = "sift" if hasattr(cv2, "SIFT_create") else "akaze"
+    secondary_method = "orb"
+    if primary_method == secondary_method:
+        secondary_method = "akaze"
+
+    best = select_best_pair(hg_paths, estimator="homography", feature_method=primary_method)
     img1 = best["img1"]
     img2 = best["img2"]
-    auto = best["match"]
-    H_auto = best["model"]
-    mask_auto = best["mask"]
-    inlier_ratio_auto = float(mask_auto.mean())
-    err_auto = reproj_error_homography(H_auto, auto.pts1, auto.pts2)
+    auto1 = best["match"]
+    H1 = best["model"]
+    m1 = best["mask"]
+    inlier_ratio_1 = float(m1.mean())
+    err_1 = reproj_error_homography(H1, auto1.pts1, auto1.pts2)
 
-    save_image(os.path.join(t2_dir, "automatic_matches.jpg"), auto.vis)
+    save_image(os.path.join(t2_dir, "automatic_matches.jpg"), auto1.vis)
+    save_image(os.path.join(t2_dir, f"automatic_matches_{primary_method}.jpg"), auto1.vis)
 
     metrics = {
-        "auto_pair_indices": (int(best["i"]), int(best["j"])),
-        "auto_num_matches": int(len(auto.matches)),
-        "auto_inlier_ratio": inlier_ratio_auto,
-        "auto_reproj_error_mean": float(np.mean(err_auto)),
-        "auto_reproj_error_median": float(np.median(err_auto)),
+        "auto_primary_method": primary_method,
+        "auto_secondary_method": secondary_method,
+        "auto_primary_pair_indices": (int(best["i"]), int(best["j"])),
+        "auto_primary_num_matches": int(len(auto1.matches)),
+        "auto_primary_inlier_ratio": inlier_ratio_1,
+        "auto_primary_reproj_error_mean": float(np.mean(err_1)),
+        "auto_primary_reproj_error_median": float(np.median(err_1)),
     }
+
+    # Compare the second detector/descriptor pipeline on the exact same pair.
+    try:
+        auto2 = detect_and_match(img1, img2, feature_method=secondary_method)
+        H2, m2 = cv2.findHomography(auto2.pts1, auto2.pts2, cv2.RANSAC, 3.0)
+        if H2 is None or m2 is None:
+            raise RuntimeError("Homography estimation failed for secondary pipeline.")
+        err_2 = reproj_error_homography(H2, auto2.pts1, auto2.pts2)
+        save_image(os.path.join(t2_dir, f"automatic_matches_{secondary_method}.jpg"), auto2.vis)
+        metrics.update({
+            "auto_secondary_pair_indices": (int(best["i"]), int(best["j"])),
+            "auto_secondary_num_matches": int(len(auto2.matches)),
+            "auto_secondary_inlier_ratio": float(m2.mean()),
+            "auto_secondary_reproj_error_mean": float(np.mean(err_2)),
+            "auto_secondary_reproj_error_median": float(np.median(err_2)),
+        })
+    except RuntimeError as e:
+        metrics["auto_secondary_error"] = str(e)
 
     if do_manual:
         p1, p2 = manual_correspondences(img1, img2, n_points=manual_points)
@@ -919,7 +957,7 @@ def main():
         fd2_bg=fd2_bg,
     )
 
-    print("Done. Outputs written to:", args.out_dir)
+    print("Outputs written to:", args.out_dir)
 
 
 if __name__ == "__main__":
