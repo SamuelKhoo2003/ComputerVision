@@ -68,11 +68,6 @@ def read_img(path: str):
     return img
 
 
-def bgr_to_rgb(img):
-    """Convert an image from OpenCV BGR order to RGB order."""
-    return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-
 def detect_and_match(img1, img2, max_features=4000, ratio=0.75):
     """Detect local features and compute filtered correspondences."""
     gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
@@ -174,11 +169,11 @@ def select_best_pair(paths, estimator="homography"):
 def manual_correspondences(img1, img2, n_points=12):
     """Collect manual correspondences by clicking points in image pairs."""
     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
-    axes[0].imshow(bgr_to_rgb(img1))
+    axes[0].imshow(cv2.cvtColor(img1, cv2.COLOR_BGR2RGB))
     axes[0].set_title(f"Image 1: click {n_points} points")
     axes[0].axis("off")
 
-    axes[1].imshow(bgr_to_rgb(img2))
+    axes[1].imshow(cv2.cvtColor(img2, cv2.COLOR_BGR2RGB))
     axes[1].set_title(f"Image 2: click same {n_points} points, same order")
     axes[1].axis("off")
 
@@ -396,7 +391,7 @@ def run_task3(all_paths, out_dir, pattern_rows=5, pattern_cols=7):
     sample = read_img(used[0])
     h, w = sample.shape[:2]
 
-    rms, K, dist, rvecs, tvecs = cv2.calibrateCamera(
+    rms, K, dist, _rvecs, _tvecs = cv2.calibrateCamera(
         objpoints, imgpoints, (w, h), None, None
     )
 
@@ -451,7 +446,7 @@ def compute_epipoles(F):
     return e_left, e_right
 
 
-def draw_epipolar_lines(img1, img2, pts1, pts2, F):
+def draw_epipolar_lines(img2, pts1, pts2, F):
     """Draw epipolar lines in image 2 induced by points from image 1."""
     lines2 = cv2.computeCorrespondEpilines(pts1.reshape(-1, 1, 2), 1, F).reshape(-1, 3)
     vis2 = img2.copy()
@@ -622,7 +617,7 @@ def run_task4(hg_paths, fd_paths, out_dir):
     f1 = m_fd.pts1[mF.ravel() == 1]
     f2 = m_fd.pts2[mF.ravel() == 1]
 
-    epi_img2 = draw_epipolar_lines(fd1, fd2, f1, f2, F)
+    epi_img2 = draw_epipolar_lines(fd2, f1, f2, F)
     save_image(os.path.join(t4_dir, "epipolar_lines_in_image2.jpg"), epi_img2)
 
     ep_l, ep_r = compute_epipoles(F)
@@ -673,6 +668,13 @@ def draw_horizontal_guides(img, n=15):
     for y in ys:
         cv2.line(vis, (0, y), (w, y), (0, 255, 255), 1)
     return vis
+
+
+def clean_binary_mask(mask, kernel):
+    """Apply opening and closing to remove small binary noise."""
+    out = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    out = cv2.morphologyEx(out, cv2.MORPH_CLOSE, kernel)
+    return out
 
 
 def run_task5(fd1, fd2, F, pts1, pts2, out_dir, fd1_bg=None, fd2_bg=None):
@@ -793,10 +795,8 @@ def run_task5(fd1, fd2, F, pts1, pts2, out_dir, fd1_bg=None, fd2_bg=None):
         _, m2 = cv2.threshold(d2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
         kernel = np.ones((5, 5), np.uint8)
-        m1 = cv2.morphologyEx(m1, cv2.MORPH_OPEN, kernel)
-        m1 = cv2.morphologyEx(m1, cv2.MORPH_CLOSE, kernel)
-        m2 = cv2.morphologyEx(m2, cv2.MORPH_OPEN, kernel)
-        m2 = cv2.morphologyEx(m2, cv2.MORPH_CLOSE, kernel)
+        m1 = clean_binary_mask(m1, kernel)
+        m2 = clean_binary_mask(m2, kernel)
         fg_mask = cv2.bitwise_and(m1, m2)
         save_image(os.path.join(t5_dir, "foreground_mask_from_fd_no_object.jpg"), fg_mask)
 

@@ -25,4 +25,4 @@ outlier_ratio=0.50, median_recall=0.960
 outlier_ratio=0.60, median_recall=0.988
 outlier_ratio=0.70, median_recall=0.968
 outlier_ratio=0.80, median_recall=0.988
-outlier_ratio=0.90, median_recall=0.161
+outlier_ratio=0.90, median_recall=0.149
