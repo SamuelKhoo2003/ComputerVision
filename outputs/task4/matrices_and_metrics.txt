@@ -1,5 +1,5 @@
 HG pair indices (task4.1): 1, 2
-FD pair indices (task4.2/5): 2, 8
+FD pair indices (task4.2/5): 1, 3
 
 Homography H:
 [[ 7.45079804e-01 -6.88242481e-01  7.07524149e+02]
@@ -7,15 +7,15 @@ Homography H:
  [-3.92226155e-06  2.34869345e-05  1.00000000e+00]]
 
 Fundamental F:
-[[ 4.15144103e-07  5.12878532e-08 -3.45377980e-04]
- [ 1.34742111e-08  4.89994252e-07 -7.28668324e-04]
- [-2.45599151e-04 -5.71908278e-04  1.00000000e+00]]
+[[ 3.08886851e-08  3.76059044e-06 -3.81339810e-03]
+ [-3.06447360e-06  5.84362069e-07 -5.64532542e-03]
+ [ 2.99022794e-03  3.81740587e-03  1.00000000e+00]]
 
 Homography inliers: 158/295
-Fundamental inliers: 17/41
-Fundamental inlier ratio: 0.414634
-Left epipole: [5.55604682e+02 1.10901812e+03 1.00000000e+00]
-Right epipole: [6.50437713e+02 1.46920945e+03 1.00000000e+00]
+Fundamental inliers: 42/217
+Fundamental inlier ratio: 0.193548
+Left epipole: [-1.16490979e+03  9.64030302e+02  1.00000000e+00]
+Right epipole: [-1.64623897e+03  1.02756424e+03  1.00000000e+00]
 Estimated outlier tolerance (median recall>=0.5): 0.8
 outlier_ratio=0.00, median_recall=0.987
 outlier_ratio=0.10, median_recall=0.962
@@ -26,4 +26,4 @@ outlier_ratio=0.50, median_recall=0.981
 outlier_ratio=0.60, median_recall=0.962
 outlier_ratio=0.70, median_recall=0.962
 outlier_ratio=0.80, median_recall=0.981
-outlier_ratio=0.90, median_recall=0.120
+outlier_ratio=0.90, median_recall=0.130

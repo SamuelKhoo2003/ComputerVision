@@ -638,7 +638,13 @@ def estimate_outlier_tolerance(pts1, pts2, max_trials=30):
     return ratios, survivals, tol
 
 
-def run_task4(hg_paths, fd_paths, out_dir, calibration=None):
+def run_task4(
+    hg_paths,
+    fd_paths,
+    out_dir,
+    calibration=None,
+    fd_feature_method="akaze",
+):
     """Task 4: homography/fundamental estimation and geometric diagnostics."""
     t4_dir = os.path.join(out_dir, "task4")
     ensure_dir(t4_dir)
@@ -664,6 +670,7 @@ def run_task4(hg_paths, fd_paths, out_dir, calibration=None):
     best_fd = select_best_pair(
         fd_paths,
         estimator="fundamental",
+        feature_method=fd_feature_method,
         image_transform=fd_transform,
     )
     fd1 = best_fd["img1"]
@@ -766,6 +773,7 @@ def run_task5(
     fundamental_total_matches=None,
     min_f_inliers=15,
     min_f_inlier_ratio=0.30,
+    rectify_threshold=5.0,
 ):
     """Task 5: uncalibrated rectification, disparity, and relative depth estimation."""
     t5_dir = os.path.join(out_dir, "task5")
@@ -801,7 +809,11 @@ def run_task5(
     h, w = fd1.shape[:2]
 
     ok, H1, H2 = cv2.stereoRectifyUncalibrated(
-        pts1.reshape(-1, 2), pts2.reshape(-1, 2), F, imgSize=(w, h)
+        pts1.reshape(-1, 2),
+        pts2.reshape(-1, 2),
+        F,
+        imgSize=(w, h),
+        threshold=rectify_threshold,
     )
     if not ok:
         with open(os.path.join(t5_dir, "rectification_failed.txt"), "w", encoding="utf-8") as f:
@@ -835,7 +847,7 @@ def run_task5(
     g2 = cv2.cvtColor(r2[y0:y1 + 1, x0:x1 + 1], cv2.COLOR_BGR2GRAY)
 
     roi_w = int(g1.shape[1])
-    num_disp = min(16 * 10, max(16, (roi_w // 16) * 16))
+    num_disp = min(16 * 16, max(16, (roi_w // 16) * 16))
     if num_disp >= roi_w:
         num_disp = max(16, ((roi_w // 16) - 1) * 16)
     if num_disp < 16:
@@ -844,21 +856,23 @@ def run_task5(
             f.write(f"roi_width: {roi_w}\n")
         return
 
+    block_size = 5
     sgbm = cv2.StereoSGBM_create(
         minDisparity=0,
         numDisparities=num_disp,
-        blockSize=7,
-        P1=8 * 3 * 7 ** 2,
-        P2=32 * 3 * 7 ** 2,
+        blockSize=block_size,
+        P1=8 * 3 * block_size ** 2,
+        P2=32 * 3 * block_size ** 2,
         disp12MaxDiff=1,
-        uniquenessRatio=10,
-        speckleWindowSize=100,
+        uniquenessRatio=5,
+        speckleWindowSize=50,
         speckleRange=2,
         preFilterCap=63,
         mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY,
     )
 
     disp_roi = sgbm.compute(g1, g2).astype(np.float32) / 16.0
+    disp_roi = cv2.medianBlur(disp_roi, 5)
     disp = np.full((h, w), np.nan, np.float32)
     disp[y0:y1 + 1, x0:x1 + 1] = disp_roi
     disp[disp <= 0] = np.nan
@@ -871,6 +885,7 @@ def run_task5(
 
     disp_vis = np.nan_to_num(disp, nan=0.0)
     disp_vis = cv2.normalize(disp_vis, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    disp_vis = cv2.equalizeHist(disp_vis)
 
     disp_color = cv2.applyColorMap(disp_vis, cv2.COLORMAP_TURBO)
     depth_color = cv2.applyColorMap(rel_depth, cv2.COLORMAP_TURBO)
@@ -935,6 +950,12 @@ def main():
     parser.add_argument("--fd-no-object-dir", default="")
     parser.add_argument("--hg-dir", default="cv_pictures/HG")
     parser.add_argument("--out-dir", default="outputs")
+    parser.add_argument(
+        "--fd-feature-method",
+        default="akaze",
+        choices=["sift_orb", "sift", "orb", "akaze"],
+        help="Feature method for FD pair selection in Task 4/5",
+    )
     parser.add_argument("--pattern-rows", type=int, default=5, help="Chessboard inner corners rows")
     parser.add_argument("--pattern-cols", type=int, default=7, help="Chessboard inner corners cols")
     parser.add_argument("--min-f-inliers", type=int, default=15, help="Minimum F inliers required for Task 5")
@@ -943,6 +964,12 @@ def main():
         type=float,
         default=0.30,
         help="Minimum F inlier ratio required for Task 5",
+    )
+    parser.add_argument(
+        "--rectify-threshold",
+        type=float,
+        default=5.0,
+        help="Inlier threshold passed to stereoRectifyUncalibrated",
     )
     parser.add_argument("--no-manual", action="store_true", help="Disable manual clicking for task 2")
     parser.add_argument("--manual-points", type=int, default=12)
@@ -1034,7 +1061,13 @@ def main():
             "Task 5 foreground-only outputs cannot be computed."
         )
 
-    t4 = run_task4(hg_paths, fd_paths_for_t45, args.out_dir, calibration=calib)
+    t4 = run_task4(
+        hg_paths,
+        fd_paths_for_t45,
+        args.out_dir,
+        calibration=calib,
+        fd_feature_method=args.fd_feature_method,
+    )
 
     print("Running Task 5...")
     fd1_bg = None
@@ -1065,6 +1098,7 @@ def main():
         fundamental_total_matches=t4["fundamental_total_matches"],
         min_f_inliers=args.min_f_inliers,
         min_f_inlier_ratio=args.min_f_inlier_ratio,
+        rectify_threshold=args.rectify_threshold,
     )
 
     print("Outputs written to:", args.out_dir)
