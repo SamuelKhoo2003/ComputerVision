@@ -1,6 +1,6 @@
 # Coursework Tasks 2-5 (Python)
 
-This repository runs coursework Tasks 2-5 using OpenCV.
+This project runs coursework Tasks 2-5 using OpenCV and writes results under `outputs/`.
 
 ## Setup
 
@@ -10,76 +10,99 @@ source cv_env/bin/activate
 pip install -r requirements.txt
 ```
 
-## CLI Usage
+## Run
 
 ```bash
 ./cv_env/bin/python coursework_tasks.py [options]
 ```
 
-Options:
-- `--fd-dir`: FD image folder.
-  - Default auto-detect order: `cv_pictures/FD_uncropped` -> `cv_pictures/FD` -> `cv_pictures/FD_cropped`
-- `--fd-no-object-dir`: no-object FD folder (optional override)
-- `--hg-dir`: HG image folder (default `cv_pictures/HG`)
-- `--out-dir`: output root folder (default `outputs`)
-- `--pattern-rows`: checkerboard inner-corner rows for calibration (default `5`)
-- `--pattern-cols`: checkerboard inner-corner cols for calibration (default `7`)
-- `--no-manual`: disable manual clicks in Task 2
-- `--manual-points`: number of manual correspondences for Task 2 (default `12`)
+At the end, the script prints:
 
-## Recommended Runs
+```text
+Outputs written to: <out_dir>
+```
 
-Non-interactive:
+## Main Options
+
+- `--fd-dir`: FD folder for Task 4/5 pair selection.
+  - Auto-detect order if omitted: `cv_pictures/FD_uncropped` -> `cv_pictures/FD` -> `cv_pictures/FD_cropped`
+- `--fd-no-object-dir`: FD no-object folder (used for Task 3 calibration preference and Task 5 foreground-only outputs).
+- `--hg-dir`: HG folder (default `cv_pictures/HG`)
+- `--out-dir`: output folder root (default `outputs`)
+- `--fd-feature-method`: FD matcher for Task 4/5 (`sift_orb`, `sift`, `orb`, `akaze`; default `akaze`)
+- `--pattern-rows`: checkerboard inner-corner rows (default `5`)
+- `--pattern-cols`: checkerboard inner-corner cols (default `7`)
+- `--min-f-inliers`: Task 5 minimum fundamental inliers gate (default `15`)
+- `--min-f-inlier-ratio`: Task 5 minimum fundamental inlier ratio gate (default `0.30`)
+- `--rectify-threshold`: threshold passed to `stereoRectifyUncalibrated` (default `5.0`)
+- `--no-manual`: skip manual clicking in Task 2
+- `--manual-points`: manual correspondences count for Task 2 (default `12`)
+
+## Recommended Commands
+
+Non-interactive run:
 
 ```bash
 ./cv_env/bin/python coursework_tasks.py --no-manual
 ```
 
-Explicit split (Task 4/5 from uncropped FD):
+Use uncropped FD for Task 4/5 and aligned no-object FD:
 
 ```bash
 ./cv_env/bin/python coursework_tasks.py \
   --fd-dir cv_pictures/FD_uncropped \
-  --fd-no-object-dir cv_pictures/FD_no_object \
+  --fd-no-object-dir cv_pictures/FD_uncropped_no_object \
   --hg-dir cv_pictures/HG \
   --no-manual
 ```
 
-## What Each Task Uses
+If you want to test another dataset root (example: `cv_pictures_2`):
+
+```bash
+./cv_env/bin/python coursework_tasks.py \
+  --fd-dir cv_pictures_2/FD_uncropped \
+  --fd-no-object-dir cv_pictures_2/FD_uncropped_no_object \
+  --hg-dir cv_pictures_2/HG \
+  --no-manual
+```
+
+Relax Task 5 gate for debugging weak FD pairs:
+
+```bash
+./cv_env/bin/python coursework_tasks.py \
+  --no-manual \
+  --min-f-inliers 12 \
+  --min-f-inlier-ratio 0.20
+```
+
+## Task Inputs/Behavior
 
 - Task 2:
-  - Uses `HG` images only.
-  - Runs two automatic pipelines on the same selected HG pair:
-    - primary: `SIFT` (fallback `AKAZE` if SIFT unavailable)
-    - secondary: `ORB`
-  - Optional manual correspondence comparison.
+  - Uses HG images only.
+  - Runs two automatic matching pipelines on the same selected HG pair.
+  - Optional manual correspondence mode.
 
 - Task 3:
-  - Prefers `FD_no_object` images if at least 3 are available.
-  - Falls back to combined FD + HG + no-object if needed.
-  - Performs camera calibration and writes intrinsics/distortion.
+  - Uses FD no-object images when at least 3 are available.
+  - Otherwise falls back to FD + HG + no-object combined.
+  - Writes calibration logs and distortion illustration.
 
 - Task 4:
-  - Homography on HG.
-  - Fundamental matrix on FD.
-  - If calibration is available from Task 3, FD images are undistorted before FD matching/model fitting.
+  - Estimates homography from HG pair.
+  - Estimates fundamental matrix from FD pair.
+  - Uses calibration undistortion for FD matching if Task 3 succeeds.
 
 - Task 5:
-  - Uses the FD pair selected in Task 4.
-  - Applies a pre-rectification quality gate on Task 4 fundamental support:
-    - minimum inliers: `35`
-    - minimum inlier ratio: `0.30`
-  - If gate fails, writes `rectification_failed.txt` and skips disparity/depth generation.
-  - If no-object FD pair is index-aligned, also computes foreground-only outputs.
+  - Uses the FD pair selected by Task 4.
+  - Applies pre-rectification fundamental support gate (`--min-f-*`).
+  - Generates rectified pair, disparity, and relative depth.
+  - Foreground-only outputs are produced only if FD no-object indices align with selected FD pair.
 
 ## Output Structure
 
-All outputs are written under `outputs/`.
-
 - `outputs/task2/`
   - `automatic_matches.jpg`
-  - `automatic_matches_sift.jpg` (or `automatic_matches_akaze.jpg`)
-  - `automatic_matches_orb.jpg`
+  - `automatic_matches_<method>.jpg`
   - `manual_matches.jpg` (manual mode only)
   - `metrics.txt`
 
@@ -87,30 +110,30 @@ All outputs are written under `outputs/`.
   - `chessboard_detection_log.txt`
   - `camera_parameters.txt`
   - `distortion_illustration.jpg`
-  - `calibration_failed.txt` (only when calibration is not possible)
+  - `calibration_failed.txt` (only if calibration fails)
 
 - `outputs/task4/`
   - `homography_projected_keypoints.jpg`
   - `epipolar_lines_in_image2.jpg`
-  - `epipole_vanishing_horizon.jpg` (if VP/horizon estimation succeeds)
+  - `epipole_vanishing_horizon.jpg` (if vanishing-point estimation succeeds)
   - `matrices_and_metrics.txt`
 
 - `outputs/task5/`
-  - Success path:
+  - Success:
     - `rectified_pair_with_epipolar_lines.jpg`
     - `disparity_map.jpg`
     - `relative_depth_map.jpg`
     - `quality_metrics.txt`
-    - optional foreground files when no-object alignment exists:
+    - optional:
       - `foreground_mask_from_fd_no_object.jpg`
       - `disparity_map_foreground_only.jpg`
       - `relative_depth_map_foreground_only.jpg`
       - `foreground_metrics.txt`
-  - Failure path:
+  - Failure:
     - `rectification_failed.txt`
 
 ## Notes
 
-- Checkerboard pattern uses **inner corners**, not number of printed squares.
-- Task 5 depth is relative (`1/disparity`), not metric depth.
-- If cropped/uncropped FD images are mixed in one folder, Task 4/5 pair quality usually degrades. Prefer separate runs for each set.
+- Checkerboard settings are **inner corners** (not printed square count).
+- Task 5 depth is relative depth (`1/disparity`), not metric depth.
+- Do not mix cropped and uncropped FD images in one folder for final results.
