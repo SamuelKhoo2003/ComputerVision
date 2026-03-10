@@ -1,14 +1,14 @@
 requested_pattern_rows: 5
 requested_pattern_cols: 7
 images_considered: 9
-images_detected: 8
+images_detected: 7
 
-ok=True, method=findChessboardCorners, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(2048, 1536), path=cv_pictures/FD_no_object/PHOTO-2026-03-08-20-29-05 2.jpg
-ok=True, method=findChessboardCorners, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(2048, 1536), path=cv_pictures/FD_no_object/PHOTO-2026-03-08-20-29-05 3.jpg
-ok=True, method=findChessboardCorners, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(2048, 1536), path=cv_pictures/FD_no_object/PHOTO-2026-03-08-20-29-05 4.jpg
-ok=True, method=findChessboardCorners, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(2048, 1536), path=cv_pictures/FD_no_object/PHOTO-2026-03-08-20-29-05 5.jpg
-ok=False, method=none, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(2048, 1536), path=cv_pictures/FD_no_object/PHOTO-2026-03-08-20-29-05.jpg
-ok=True, method=findChessboardCorners, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(2048, 1536), path=cv_pictures/FD_no_object/PHOTO-2026-03-08-20-29-06 2.jpg
-ok=True, method=findChessboardCorners, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(2048, 1536), path=cv_pictures/FD_no_object/PHOTO-2026-03-08-20-29-06 3.jpg
-ok=True, method=findChessboardCorners, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(2048, 1536), path=cv_pictures/FD_no_object/PHOTO-2026-03-08-20-29-06 4.jpg
-ok=True, method=findChessboardCorners, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(2048, 1536), path=cv_pictures/FD_no_object/PHOTO-2026-03-08-20-29-06.jpg
+ok=True, method=findChessboardCorners, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(1222, 1536), path=cv_pictures/FD_no_object/PHOTO-2026-03-08-20-29-05 2.jpg
+ok=True, method=findChessboardCorners, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(1433, 1536), path=cv_pictures/FD_no_object/PHOTO-2026-03-08-20-29-05 3.jpg
+ok=True, method=findChessboardCorners, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(1079, 1536), path=cv_pictures/FD_no_object/PHOTO-2026-03-08-20-29-05 4.jpg
+ok=True, method=findChessboardCorners, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(1496, 1536), path=cv_pictures/FD_no_object/PHOTO-2026-03-08-20-29-05 5.jpg
+ok=False, method=none, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(1767, 1536), path=cv_pictures/FD_no_object/PHOTO-2026-03-08-20-29-05.jpg
+ok=True, method=findChessboardCorners, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(1347, 1536), path=cv_pictures/FD_no_object/PHOTO-2026-03-08-20-29-06 2.jpg
+ok=True, method=findChessboardCorners, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(1504, 1536), path=cv_pictures/FD_no_object/PHOTO-2026-03-08-20-29-06 3.jpg
+ok=True, method=findChessboardCorners, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(1642, 1536), path=cv_pictures/FD_no_object/PHOTO-2026-03-08-20-29-06 4.jpg
+ok=False, method=none, swapped_pattern_ok=False, used_swapped_pattern=False, shape(h,w)=(1322, 1536), path=cv_pictures/FD_no_object/PHOTO-2026-03-08-20-29-06.jpg

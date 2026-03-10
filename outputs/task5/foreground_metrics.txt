@@ -1,2 +1,2 @@
-foreground_pixels: 273905
-foreground_fraction: 0.087072
+foreground_pixels: 404731
+foreground_fraction: 0.128661

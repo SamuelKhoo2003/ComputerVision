@@ -123,7 +123,12 @@ def detect_and_match(img1, img2, max_features=4000, ratio=0.75, feature_method="
     return MatchResult(pts1=pts1, pts2=pts2, kp1=kp1, kp2=kp2, matches=good, vis=vis)
 
 
-def select_best_pair(paths, estimator="homography", feature_method="sift_orb"):
+def select_best_pair(
+    paths,
+    estimator="homography",
+    feature_method="sift_orb",
+    image_transform=None,
+):
     """Select the image pair with the strongest robust geometric fit."""
     if len(paths) < 2:
         raise RuntimeError("Need at least 2 images to select a pair.")
@@ -135,6 +140,9 @@ def select_best_pair(paths, estimator="homography", feature_method="sift_orb"):
     for i, j in combinations(range(len(paths)), 2):
         img1 = read_img(paths[i])
         img2 = read_img(paths[j])
+        if image_transform is not None:
+            img1 = image_transform(img1)
+            img2 = image_transform(img2)
         try:
             m = detect_and_match(img1, img2, feature_method=feature_method)
         except RuntimeError:
@@ -154,7 +162,11 @@ def select_best_pair(paths, estimator="homography", feature_method="sift_orb"):
 
         inliers = int(np.sum(mask))
         inlier_ratio = float(mask.mean())
-        score = inliers + 1000.0 * inlier_ratio
+        # For fundamental matrix selection, prioritize absolute inlier support.
+        if estimator == "fundamental":
+            score = inliers + 100.0 * inlier_ratio
+        else:
+            score = inliers + 1000.0 * inlier_ratio
         if score > best_score:
             best_score = score
             best = {
@@ -626,7 +638,7 @@ def estimate_outlier_tolerance(pts1, pts2, max_trials=30):
     return ratios, survivals, tol
 
 
-def run_task4(hg_paths, fd_paths, out_dir):
+def run_task4(hg_paths, fd_paths, out_dir, calibration=None):
     """Task 4: homography/fundamental estimation and geometric diagnostics."""
     t4_dir = os.path.join(out_dir, "task4")
     ensure_dir(t4_dir)
@@ -644,8 +656,16 @@ def run_task4(hg_paths, fd_paths, out_dir):
     vis_proj = draw_projected_points(hg1, hg2, in1, in2, H)
     save_image(os.path.join(t4_dir, "homography_projected_keypoints.jpg"), vis_proj)
 
-    # 4.2 Fundamental matrix on FD
-    best_fd = select_best_pair(fd_paths, estimator="fundamental")
+    # 4.2 Fundamental matrix on FD (optionally on undistorted images)
+    fd_transform = None
+    if calibration is not None and "K" in calibration and "dist" in calibration:
+        fd_transform = undistort_for_matching_factory(calibration["K"], calibration["dist"])
+
+    best_fd = select_best_pair(
+        fd_paths,
+        estimator="fundamental",
+        image_transform=fd_transform,
+    )
     fd1 = best_fd["img1"]
     fd2 = best_fd["img2"]
     m_fd = best_fd["match"]
@@ -679,6 +699,7 @@ def run_task4(hg_paths, fd_paths, out_dir):
         f.write(str(F) + "\n\n")
         f.write(f"Homography inliers: {len(in1)}/{len(m_hg.pts1)}\n")
         f.write(f"Fundamental inliers: {len(f1)}/{len(m_fd.pts1)}\n")
+        f.write(f"Fundamental inlier ratio: {len(f1) / max(len(m_fd.pts1), 1):.6f}\n")
         f.write(f"Left epipole: {ep_l}\n")
         f.write(f"Right epipole: {ep_r}\n")
         if outlier is not None:
@@ -695,6 +716,8 @@ def run_task4(hg_paths, fd_paths, out_dir):
         "fd2": fd2,
         "fd_i": int(best_fd["i"]),
         "fd_j": int(best_fd["j"]),
+        "fundamental_inliers": int(len(f1)),
+        "fundamental_total_matches": int(len(m_fd.pts1)),
     }
 
 
@@ -708,6 +731,21 @@ def draw_horizontal_guides(img, n=15):
     return vis
 
 
+def undistort_for_matching_factory(K, dist):
+    """Create an image-undistortion callable with per-resolution caching."""
+    cache = {}
+
+    def _undistort(img):
+        h, w = img.shape[:2]
+        key = (h, w)
+        if key not in cache:
+            newK, _ = cv2.getOptimalNewCameraMatrix(K, dist, (w, h), 1, (w, h))
+            cache[key] = newK
+        return cv2.undistort(img, K, dist, None, cache[key])
+
+    return _undistort
+
+
 def clean_binary_mask(mask, kernel):
     """Apply opening and closing to remove small binary noise."""
     out = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
@@ -715,7 +753,20 @@ def clean_binary_mask(mask, kernel):
     return out
 
 
-def run_task5(fd1, fd2, F, pts1, pts2, out_dir, fd1_bg=None, fd2_bg=None):
+def run_task5(
+    fd1,
+    fd2,
+    F,
+    pts1,
+    pts2,
+    out_dir,
+    fd1_bg=None,
+    fd2_bg=None,
+    fundamental_inliers=None,
+    fundamental_total_matches=None,
+    min_f_inliers=15,
+    min_f_inlier_ratio=0.30,
+):
     """Task 5: uncalibrated rectification, disparity, and relative depth estimation."""
     t5_dir = os.path.join(out_dir, "task5")
     ensure_dir(t5_dir)
@@ -734,6 +785,18 @@ def run_task5(fd1, fd2, F, pts1, pts2, out_dir, fd1_bg=None, fd2_bg=None):
         p = os.path.join(t5_dir, name)
         if os.path.isfile(p):
             os.remove(p)
+
+    if fundamental_inliers is not None and fundamental_total_matches is not None:
+        inlier_ratio = float(fundamental_inliers / max(fundamental_total_matches, 1))
+        if fundamental_inliers < min_f_inliers or inlier_ratio < min_f_inlier_ratio:
+            with open(os.path.join(t5_dir, "rectification_failed.txt"), "w", encoding="utf-8") as f:
+                f.write("FD pair rejected before rectification due to weak fundamental matrix support.\n")
+                f.write(f"fundamental_inliers: {fundamental_inliers}\n")
+                f.write(f"fundamental_total_matches: {fundamental_total_matches}\n")
+                f.write(f"fundamental_inlier_ratio: {inlier_ratio:.6f}\n")
+                f.write(f"required_min_inliers: {min_f_inliers}\n")
+                f.write(f"required_min_inlier_ratio: {min_f_inlier_ratio:.6f}\n")
+            return
 
     h, w = fd1.shape[:2]
 
@@ -864,33 +927,72 @@ def main():
         cv2.ocl.setUseOpenCL(False)
 
     parser = argparse.ArgumentParser(description="Computer Vision coursework Tasks 2-5")
-    parser.add_argument("--fd-dir", default="cv_pictures/FD")
+    parser.add_argument(
+        "--fd-dir",
+        default="",
+        help="FD image folder (default auto-detect: FD_uncropped, then FD, then FD_cropped)",
+    )
     parser.add_argument("--fd-no-object-dir", default="")
     parser.add_argument("--hg-dir", default="cv_pictures/HG")
     parser.add_argument("--out-dir", default="outputs")
     parser.add_argument("--pattern-rows", type=int, default=5, help="Chessboard inner corners rows")
     parser.add_argument("--pattern-cols", type=int, default=7, help="Chessboard inner corners cols")
+    parser.add_argument("--min-f-inliers", type=int, default=15, help="Minimum F inliers required for Task 5")
+    parser.add_argument(
+        "--min-f-inlier-ratio",
+        type=float,
+        default=0.30,
+        help="Minimum F inlier ratio required for Task 5",
+    )
     parser.add_argument("--no-manual", action="store_true", help="Disable manual clicking for task 2")
     parser.add_argument("--manual-points", type=int, default=12)
     args = parser.parse_args()
 
     ensure_dir(args.out_dir)
 
-    fd_paths = natural_sorted_jpgs(args.fd_dir)
-    hg_paths = natural_sorted_jpgs(args.hg_dir)
-    fd_no_object_dir = args.fd_no_object_dir or resolve_first_existing_dir(
+    fd_dir = args.fd_dir or resolve_first_existing_dir(
         [
-            "cv_pictures/FD_no_banana",
-            "cv_pictures/FD_no_object",
-            "cv_pictures/FD_without_object",
-            "cv_pictures/FD without object",
+            "cv_pictures/FD_uncropped",
+            "cv_pictures/FD",
+            "cv_pictures/FD_cropped",
         ]
     )
+    fd_paths = natural_sorted_jpgs(fd_dir) if fd_dir else []
+    hg_paths = natural_sorted_jpgs(args.hg_dir)
+    if args.fd_no_object_dir:
+        fd_no_object_dir = args.fd_no_object_dir
+    else:
+        fd_no_object_candidates = []
+        base = os.path.basename(fd_dir) if fd_dir else ""
+        if "uncropped" in base.lower():
+            fd_no_object_candidates.extend(
+                [
+                    "cv_pictures/FD_uncropped_no_object",
+                    "cv_pictures/FD_uncropped_no_banana",
+                ]
+            )
+        elif "cropped" in base.lower():
+            fd_no_object_candidates.extend(
+                [
+                    "cv_pictures/FD_cropped_no_object",
+                    "cv_pictures/FD_cropped_no_banana",
+                ]
+            )
+        fd_no_object_candidates.extend(
+            [
+                "cv_pictures/FD_no_banana",
+                "cv_pictures/FD_no_object",
+                "cv_pictures/FD_without_object",
+                "cv_pictures/FD without object",
+            ]
+        )
+        fd_no_object_dir = resolve_first_existing_dir(fd_no_object_candidates)
     fd_no_object_paths = natural_sorted_jpgs(fd_no_object_dir) if fd_no_object_dir else []
 
     if len(fd_paths) < 2 or len(hg_paths) < 2:
         raise RuntimeError("Need at least 2 images in each of FD and HG folders.")
 
+    print(f"Using FD folder: {fd_dir} ({len(fd_paths)} images)")
     if fd_no_object_dir:
         print(f"Using no-object FD folder: {fd_no_object_dir} ({len(fd_no_object_paths)} images)")
     else:
@@ -914,7 +1016,7 @@ def main():
             "Task 3 calibration source: fallback to FD + HG + FD no-object "
             f"({len(calib_paths)} images total)"
         )
-    run_task3(calib_paths, args.out_dir, args.pattern_rows, args.pattern_cols)
+    calib = run_task3(calib_paths, args.out_dir, args.pattern_rows, args.pattern_cols)
 
     print("Running Task 4...")
     fd_paths_for_t45 = fd_paths
@@ -932,7 +1034,7 @@ def main():
             "Task 5 foreground-only outputs cannot be computed."
         )
 
-    t4 = run_task4(hg_paths, fd_paths_for_t45, args.out_dir)
+    t4 = run_task4(hg_paths, fd_paths_for_t45, args.out_dir, calibration=calib)
 
     print("Running Task 5...")
     fd1_bg = None
@@ -940,6 +1042,10 @@ def main():
     if len(fd_no_object_paths) > max(t4["fd_i"], t4["fd_j"]):
         fd1_bg = read_img(fd_no_object_paths[t4["fd_i"]])
         fd2_bg = read_img(fd_no_object_paths[t4["fd_j"]])
+        if calib is not None and "K" in calib and "dist" in calib:
+            undistort_fd = undistort_for_matching_factory(calib["K"], calib["dist"])
+            fd1_bg = undistort_fd(fd1_bg)
+            fd2_bg = undistort_fd(fd2_bg)
     elif fd_no_object_paths:
         print(
             "FD no-object images exist but counts/order do not align with chosen FD pair; "
@@ -955,6 +1061,10 @@ def main():
         out_dir=args.out_dir,
         fd1_bg=fd1_bg,
         fd2_bg=fd2_bg,
+        fundamental_inliers=t4["fundamental_inliers"],
+        fundamental_total_matches=t4["fundamental_total_matches"],
+        min_f_inliers=args.min_f_inliers,
+        min_f_inlier_ratio=args.min_f_inlier_ratio,
     )
 
     print("Outputs written to:", args.out_dir)

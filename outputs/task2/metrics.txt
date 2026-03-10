@@ -1,12 +1,12 @@
 auto_primary_method: sift
 auto_secondary_method: orb
 auto_primary_pair_indices: (1, 2)
-auto_primary_num_matches: 361
-auto_primary_inlier_ratio: 0.5096952908587258
-auto_primary_reproj_error_mean: 119.18080399720793
-auto_primary_reproj_error_median: 2.900864685549449
+auto_primary_num_matches: 295
+auto_primary_inlier_ratio: 0.535593220338983
+auto_primary_reproj_error_mean: 124.22094672565456
+auto_primary_reproj_error_median: 2.843212952261895
 auto_secondary_pair_indices: (1, 2)
-auto_secondary_num_matches: 343
-auto_secondary_inlier_ratio: 0.6005830903790087
-auto_secondary_reproj_error_mean: 60.94205339460882
-auto_secondary_reproj_error_median: 2.484965574570021
+auto_secondary_num_matches: 327
+auto_secondary_inlier_ratio: 0.581039755351682
+auto_secondary_reproj_error_mean: 69.63192027095413
+auto_secondary_reproj_error_median: 2.563806430786742

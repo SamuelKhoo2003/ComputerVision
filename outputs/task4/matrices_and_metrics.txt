@@ -1,28 +1,29 @@
 HG pair indices (task4.1): 1, 2
-FD pair indices (task4.2/5): 2, 7
+FD pair indices (task4.2/5): 2, 8
 
 Homography H:
-[[ 7.50249029e-01 -6.97336102e-01  1.07353988e+03]
- [ 7.42185871e-01  7.54625962e-01 -4.30200258e+02]
- [-5.38263924e-06  2.26080003e-05  1.00000000e+00]]
+[[ 7.45079804e-01 -6.88242481e-01  7.07524149e+02]
+ [ 7.37878617e-01  7.40207945e-01 -4.34394949e+02]
+ [-3.92226155e-06  2.34869345e-05  1.00000000e+00]]
 
 Fundamental F:
-[[ 1.37013400e-07 -9.18563485e-07  1.45752174e-04]
- [ 2.91499242e-07  2.67716534e-07 -2.75361261e-03]
- [-5.11218141e-04  2.30762834e-03  1.00000000e+00]]
+[[ 4.15144103e-07  5.12878532e-08 -3.45377980e-04]
+ [ 1.34742111e-08  4.89994252e-07 -7.28668324e-04]
+ [-2.45599151e-04 -5.71908278e-04  1.00000000e+00]]
 
-Homography inliers: 184/361
-Fundamental inliers: 41/103
-Left epipole: [2.65907887e+03 5.03907674e+02 1.00000000e+00]
-Right epipole: [8.18005847e+03 1.37881574e+03 1.00000000e+00]
+Homography inliers: 158/295
+Fundamental inliers: 17/41
+Fundamental inlier ratio: 0.414634
+Left epipole: [5.55604682e+02 1.10901812e+03 1.00000000e+00]
+Right epipole: [6.50437713e+02 1.46920945e+03 1.00000000e+00]
 Estimated outlier tolerance (median recall>=0.5): 0.8
-outlier_ratio=0.00, median_recall=0.962
-outlier_ratio=0.10, median_recall=0.918
-outlier_ratio=0.20, median_recall=0.989
-outlier_ratio=0.30, median_recall=0.940
-outlier_ratio=0.40, median_recall=0.918
-outlier_ratio=0.50, median_recall=0.967
-outlier_ratio=0.60, median_recall=0.957
-outlier_ratio=0.70, median_recall=0.946
-outlier_ratio=0.80, median_recall=0.783
-outlier_ratio=0.90, median_recall=0.057
+outlier_ratio=0.00, median_recall=0.987
+outlier_ratio=0.10, median_recall=0.962
+outlier_ratio=0.20, median_recall=0.968
+outlier_ratio=0.30, median_recall=0.905
+outlier_ratio=0.40, median_recall=0.956
+outlier_ratio=0.50, median_recall=0.981
+outlier_ratio=0.60, median_recall=0.962
+outlier_ratio=0.70, median_recall=0.962
+outlier_ratio=0.80, median_recall=0.981
+outlier_ratio=0.90, median_recall=0.120
